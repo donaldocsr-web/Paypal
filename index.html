@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Paypal recharge</title>
+  <style>
+    /* Tela de carregamento inicial */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background-color: #f0f2f5;
+      display: flex; justify-content: center; align-items: center;
+      z-index: 2000;
+    }
+    .spinner {
+      width: 60px; height: 60px;
+      border: 6px solid #e0e0e0;
+      border-top: 6px solid #003087;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { 0% {transform: rotate(0deg);} 100% {transform: rotate(360deg);} }
+
+    /* Tela de processamento após confirmar */
+    .processing-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(255, 255, 255, 0.7);
+      display: none;
+      justify-content: center; align-items: center;
+      z-index: 1500;
+    }
+
+    /* Fundo claro e moderno */
+    body {
+      margin: 0; padding: 0;
+      background-color: #f0f2f5;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #333;
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh;
+    }
+
+    /* Container principal */
+    .container {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+      width: 90%; max-width: 500px;
+      padding: 30px 25px;
+      text-align: center;
+      display: none; /* só mostra após carregar */
+    }
+
+ 
+h1 { margin-bottom: 15px; color: #003087; font-size: 1.8rem; font-weight: 600; }
+    .info { font-size: 1rem; margi
+    n-bottom: 25px; color: #555; }
+
+    form { display: flex; flex-direction: column; }
+    label { margin-bottom: 8px; font-weight: 600; color: #333; font-size: 0.95rem; text-align: left; }
+    input[type="text"], input[type="number"], input[type="tel"] {
+      padding: 14px; margin-bottom: 20px;
+      border: 1px solid #ccc; border-radius: 8px;
+      background-color: #fafafa; color: #333; font-size: 1rem;
+      outline: none; transition: border 0.3s;
+    }
+    input::placeholder { color: #999; }
+    input:focus { border-color: #003087; }
+    .result { margin: 5px 0; font-size: 1rem; color: #555; }
+    .error { color: #d9534f; text-align: center; font-size: 0.95rem; }
+
+    input[type="submit"] {
+      padding: 15px; border: none; border-radius: 12px;
+      font-size: 1.1rem; font-weight: 600;
+      background: linear-gradient(145deg, #003087, #0055aa);
+      color: #fff; cursor: pointer;
+      transition: background 0.3s, transform 0.2s;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      margin-top: 10px;
+    }
+    input[type="submit"]:hover { background: linear-gradient(145deg, #0055aa, #003087); transform: translateY(-2px); }
+
+    #responseMessage { margin-top: 20px; font-size: 1rem; text-align: center; }
+
+    /* Modal confirmação */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: none; justify-content: center; align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: #fff; border-radius: 10px;
+      padding: 25px; width: 90%; max-width: 400px;
+      color: #333; text-align: center;
+    }
+    .modal-content h2 { margin: 0 0 15px; font-size: 1.4rem; color: #003087; }
+    .modal-details { font-size: 0.95rem; line-height: 1.6; margin-bottom: 20px; }
+    .modal-buttons { display: flex; justify-content: space-between; }
+    .btn { padding: 10px 18px; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; }
+    .btn-confirm { background: linear-gradient(145deg,#003087,#0055aa); color:#fff; }
+    .btn-cancel { background:#ccc; color:#333; }
+
+    /* Botão flutuante WhatsApp animado */
+    .whatsapp-float {
+      position: fixed; bottom: 20px; right: 20px;
+      width: 60px; height: 60px; border-radius: 50%;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      display: flex; justify-content: center; align-items: center;
+      background: #25d366; animation: bounce 2s infinite;
+      z-index: 1100;
+    }
+    .whatsapp-float img { width: 35px; height: 35px; }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+  </style>
+</head>
+<body>
+  <!-- Tela de carregamento -->
+  <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+
+  <!-- Overlay processamento -->
+  <div class="processing-overlay" id="processingOverlay"><div class="spinner"></div></div>
+
+  <!-- Container -->
+  <div class="container" id="mainContainer">
+    <img src="logo1.png" alt="Logo Depósito" class="logo" />
+    <h1>Depósito Paypal</h1>
+    <div class="info">Depósito mínimo: US$ 5</div>
+    <form id="depositForm">
+      <label for="nome">Nome:</label>
+      <input type="text" id="nome" name="nome" placeholder="Digite seu nome" required />
+      <label for="email">Email do PayPal:</label>
+      <input type="text" id="email" name="email" placeholder="Digite seu email" required />
+      <label for="telefone">Número de Pagamento:</label>
+      <input type="tel" id="telefone" name="telefone" placeholder="Ex: 84/86xxxxxxx" required />
+      <label for="dolar">Valor em dólares:</label>
+      <input type="number" id="dolar" name="dolar" placeholder="Digite o valor em dólares" min="5" required />
+      <div class="result" id="mtResult">Valor total a pagar: 0 MT</div>
+      <input type="submit" value="Efetuar Depósito" />
+    </form>
+    <div id="responseMessage"></div>
+  </div>
+
+  <!-- Modal confirmação -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-content">
+      <h2>Confirmar Dados</h2>
+      <div class="modal-details" id="modalDetails"></div>
+      <div class="modal-buttons">
+        <button class="btn btn-cancel" id="btnCancel">Cancelar</button>
+        <button class="btn btn-confirm" id="btnConfirm">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WhatsApp -->
+  <a href="https://wa.me/+258860872300" target="_blank" class="whatsapp-float">
+    <img src="wa1.png" alt="WhatsApp" />
+  </a>
+
+  <script>
+    const dolarInput = document.getElementById('dolar');
+    const mtResult = document.getElementById('mtResult');
+    const depositForm = document.getElementById('depositForm');
+    const responseMessage = document.getElementById('responseMessage');
+    const modalOverlay = document.getElementById('modalOverlay');
+    const modalDetails = document.getElementById('modalDetails');
+    const btnCancel = document.getElementById('btnCancel');
+    const btnConfirm = document.getElementById('btnConfirm');
+    const processingOverlay = document.getElementById('processingOverlay');
+    const exchangeRate = 60;
+    let formData = {};
+
+    // Mostra container após carregamento
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        document.getElementById('loadingOverlay').style.display = 'none';
+        document.getElementById('mainContainer').style.display = 'block';
+      }, 1500);
+    });
+
+    // Conversão
+    dolarInput.addEventListener('input', function () {
+      const dollars = parseFloat(this.value);
+      if (isNaN(dollars)) { mtResult.textContent = 'Valor total a pagar: 0 MT'; return; }
+      if (dollars < 5) { mtResult.innerHTML = '<span class="error">Depósito mínimo é de US$ 5</span>'; }
+      else { mtResult.textContent = 'Valor total a pagar: ' + (dollars * exchangeRate).toFixed(2) + ' MT'; }
+    });
+
+    function validarEmail(email) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+    function validarTelefone(numero) {
+      const num = numero.trim();
+      if (!/^\d{9}$/.test(num)) return {valido:false, mensagem:'O número deve conter 9 dígitos.'};
+      const prefix = num.substring(0,2);
+      if (prefix==='86'||prefix==='87') return {valido:true,tipo:'e-mola'};
+      if (prefix==='84'||prefix==='85') return {valido:true,tipo:'M-Pesa'};
+      return {valido:false,mensagem:'Número inválido.'};
+    }
+
+    depositForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const nome = document.getElementById('nome').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const telefone = document.getElementById('telefone').value.trim();
+      const dollars = parseFloat(document.getElementById('dolar').value);
+      if (!nome || !email || !telefone || isNaN(dollars)) { responseMessage.textContent='Preencha tudo.'; responseMessage.className='error'; return; }
+      if (!validarEmail(email)) { responseMessage.textContent='Email inválido.'; responseMessage.className='error'; return; }
+      if (dollars<5) { responseMessage.textContent='Mínimo $5.'; responseMessage.className='error'; return; }
+      const validTel=validarTelefone(telefone); if(!validTel.valido){ responseMessage.textContent=validTel.mensagem; responseMessage.className='error'; return; }
+      const meticais=(dollars*exchangeRate).toFixed(2);
+      formData={nome,email,telefone,tipoPagamento:validTel.tipo,dollars,meticais};
+      modalDetails.innerHTML=`<p><strong>Nome:</strong> ${nome}</p><p><strong>Email:</strong> ${email}</p><p><strong>Número:</strong> ${telefone}</p><p><strong>Pagamento:</strong> ${validTel.tipo}</p><p><strong>USD:</strong> $${dollars}</p><p><strong>MT:</strong> ${meticais}</p>`;
+      modalOverlay.style.display='flex';
+    });
+
+    btnCancel.addEventListener('click', ()=>{modalOverlay.style.display='none';});
+    btnConfirm.addEventListener('click', ()=>{modalOverlay.style.display='none'; efetuarPagamento();});
+
+    async function efetuarPagamento(){
+      processingOverlay.style.display='flex'; // mostra spinner
+      responseMessage.textContent='';
+      try {
+        const payload={wallet_id:'b6978e58-4e76-436c-bc61-acc380d9b22a',number_phone:formData.telefone,"quem comprou":formData.nome,amount:formData.meticais};
+        const response=await fetch('https://gibrapay.online/v1/transfer',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','api-key':'a183633b4eb8f430921c17494e166bf2c8bbcbd4751a88a3abf9e9be08bf9c7ae2060fc8a19e6b8c294030828d439cfb82c96f9f9655a73c172739af59f47161'},
+          body:JSON.stringify(payload)
+        });
+        const result=await response.json();
+        if(result.status==='success'){responseMessage.textContent=result.message;}
+        else{responseMessage.textContent=result.message;responseMessage.className='error';}
+      } catch(err){ responseMessage.textContent='Erro no pagamento.'; responseMessage.className='error'; }
+      processingOverlay.style.display='none'; // esconde spinner
+    }
+  </script>
+</body>
+</html>
